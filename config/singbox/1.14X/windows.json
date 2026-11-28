@@ -31,10 +31,18 @@
                 "type": "hosts",
                 "tag": "hosts",
                 "predefined": { "doh.pub": ["1.12.12.21", "120.53.53.53"] }
+            },
+            {
+                "tag": "ts-dns",
+                "type": "tailscale",
+                "endpoint": "ts-ep",
+                "accept_default_resolvers": false,
+                "accept_search_domain": true
             }
         ],
         "rules": [
             { "query_type": ["HTTPS", "SVCB"], "action": "reject" },
+            { "preferred_by": ["ts-dns"], "server": "ts-dns" },
             { "clash_mode": "Direct", "server": "dnspod" },
             { "clash_mode": "Global", "server": "fakeip" },
             {
@@ -234,9 +242,28 @@
         { "tag": "Direct", "type": "direct", "domain_resolver": "dnspod" },
         { "tag": "Bridge", "type": "bridge" }
     ],
+    "endpoints": [
+        {
+            "type": "tailscale",
+            "tag": "ts-ep",
+            "state_directory": "tailscale",
+            "auth_key": "",
+            "hostname": "windows-singbox",
+            "accept_routes": true
+        }
+    ],
     "http_clients": [{ "tag": "Direct_Download", "detour": "Direct" }],
     "route": {
         "rules": [
+            {
+                "type": "logical",
+                "mode": "and",
+                "rules": [
+                    { "port": [53, 853], "invert": true },
+                    { "preferred_by": ["ts-ep"] }
+                ],
+                "outbound": "ts-ep"
+            },
             {
                 "type": "logical",
                 "mode": "and",
@@ -309,6 +336,7 @@
             { "rule_set": "geosite-steam", "outbound": "Steam" },
             { "rule_set": "geosite-geolocation-!cn", "outbound": "Default" },
             { "inbound": "mixed-in", "action": "resolve" },
+            { "preferred_by": ["ts-ep"], "outbound": "ts-ep" },
             { "rule_set": "geoip-telegram", "outbound": "Telegram" },
             {
                 "ip_cidr": [
